@@ -6,9 +6,10 @@ set(CMAKE_CXX_STANDARD 20)
 add_subdirectory(cpr)
 include("doctest/scripts/cmake/doctest.cmake")
 add_subdirectory(doctest)
+add_subdirectory(glaze)
 
-add_library(cstream "empty.cpp")
-target_link_libraries(cstream PUBLIC cpr::cpr)
+add_library(cstream STATIC "thirdparty/sha256.cpp")
+target_link_libraries(cstream PUBLIC cpr::cpr glaze::glaze)
 
 if(true) # TODO: Replace with build tests option
 
