@@ -1,9 +1,9 @@
 [submodule "cpr"]
-	path = cpr
+	path = thirdparty/cpr
 	url = https://github.com/libcpr/cpr.git
 [submodule "doctest"]
-	path = doctest
+	path = thirdparty/doctest
 	url = https://github.com/doctest/doctest.git
 [submodule "glaze"]
-	path = glaze
+	path = thirdparty/glaze
 	url = https://github.com/stephenberry/glaze.git

@@ -1,9 +1,10 @@
+#pragma once
 #include <string>
 
 namespace cstream::testing::credentials {
 
-std::string clidentID = "<insert testing clientID here>";
-std::string clientSecret = "<insert client secret here or leave blank for public>";
-// Blank ex: std::string clientSecret = ""; 
+static std::string clientID = "<insert testing clientID here>";
+static std::string clientSecret = "<insert client secret here or leave blank for public>";
+// Blank ex: std::string clientSecret = "";
 
 }

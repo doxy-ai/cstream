@@ -2,7 +2,7 @@
 
 #include <string>
 #include <vector>
-#include <ranges>
+#include <algorithm>
 
 // From: https://gist.github.com/darelf/0f96e1d313e1d0da5051e1a6eff8d329
 /*

@@ -3,18 +3,22 @@ project(Cstream CXX C)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_subdirectory(cpr)
-include("doctest/scripts/cmake/doctest.cmake")
-add_subdirectory(doctest)
-add_subdirectory(glaze)
+option(CSTREAM_BUILD_TESTS "Weather or not the tests should be built" ${PROJECT_IS_TOP_LEVEL})
 
-add_library(cstream STATIC "thirdparty/sha256.cpp")
+add_subdirectory(thirdparty/cpr)
+include("thirdparty/doctest/scripts/cmake/doctest.cmake")
+add_subdirectory(thirdparty/doctest)
+add_subdirectory(thirdparty/glaze)
+
+add_library(cstream "authorization.cpp" "thirdparty/sha256.cpp")
 target_link_libraries(cstream PUBLIC cpr::cpr glaze::glaze)
+target_include_directories(cstream PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-if(true) # TODO: Replace with build tests option
+if(${CSTREAM_BUILD_TESTS})
 
-    add_executable(tst "test.cpp")
-    target_link_libraries(tst PUBLIC cstream doctest::doctest)
+    add_executable(tst "tests/test.cpp")
+    target_link_libraries(tst PUBLIC cstream)
+    target_link_libraries(cstream PUBLIC doctest::doctest)
     enable_testing()
     doctest_discover_tests(tst)
 
