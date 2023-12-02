@@ -1,5 +1,6 @@
 #pragma once
 
+#include "cpr/cprtypes.h"
 #include "scope.hpp"
 
 #include <chrono>
@@ -16,7 +17,15 @@
 #endif // CSTREAM_BUILD_TESTS
 
 namespace cstream {
-	inline namespace auth {
+	/**
+     * @brief Contains functions and classes for vstream OAuth2 authorization.
+     */
+	inline namespace oauth2 {
+		/**
+		* @brief Generates a random code verifier for vstream PKCE.
+		* @param random The random engine.
+		* @return The generated code verifier.
+		*/
 		std::string generate_code_verifier(std::default_random_engine& random);
 
 #ifdef CSTREAM_BUILD_TESTS
@@ -35,7 +44,12 @@ namespace cstream {
 		}
 #endif // CSTREAM_BUILD_TESTS
 
-		std::string generate_code_challenge(std::string verifier);
+		/**
+		* @brief Generates a code challenge from a code verifier.
+		* @param verifier The code verifier.
+		* @return The generated code challenge.
+		*/
+		std::string generate_code_challenge(std::string_view verifier);
 
 #ifdef CSTREAM_BUILD_TESTS
 		TEST_CASE("generate_code_verifier") {
@@ -46,7 +60,17 @@ namespace cstream {
 		}
 #endif // CSTREAM_BUILD_TESTS
 
+		/**
+		* @brief Generates a random state for authorization flow.
+		* @param random The random engine.
+		* @return The generated state.
+		*/
 		std::string generate_state(std::default_random_engine& random);
+		/**
+		* @brief Generates a state for authorization flow using a seed.
+		* @param seed The seed for the random engine (defaults to the current system time).
+		* @return The generated state.
+		*/
 		std::string generate_state(std::time_t seed = std::time(nullptr));
 
 #ifdef CSTREAM_BUILD_TESTS
@@ -56,12 +80,31 @@ namespace cstream {
 		}
 #endif // CSTREAM_BUILD_TESTS
 
+		/**
+		* @brief Represents the locally generated authorization information for vstream OAuth.
+		*/
 		struct AuthorizationInfo {
 			std::string verifier;
 			std::string session_state;
-			std::string url;
+			std::string url; /// Redirect URL which when opened and authorized in a webbrowser will redirect with the authentication token!
 		};
+		/**
+		* @brief Generates authorization information for OAuth.
+		* @param clientID The OAuth client ID.
+		* @param scopes The requested scopes.
+		* @param random The random engine.
+		* @param port The optional port for redirect URI (default = 3000).
+		* @return The generated authorization information.
+		*/
 		AuthorizationInfo generate_authorization_info(std::string clientID, std::vector<std::string> scopes, std::default_random_engine& random, std::optional<uint16_t> port = {});
+		/**
+		* @brief Generates authorization information for OAuth with scope flags.
+		* @param clientID The OAuth client ID.
+		* @param scopeFlags The scope flags (which are converted into a list of scopes behind the scenes).
+		* @param random The random engine.
+		* @param port The optional port for redirect URI (default = 3000).
+		* @return The generated authorization information.
+		*/
 		AuthorizationInfo generate_authorization_info(std::string clientID, int scopeFlags, std::default_random_engine& random, std::optional<uint16_t> port = {});
 
 #ifdef CSTREAM_BUILD_TESTS
@@ -73,12 +116,29 @@ namespace cstream {
 		}
 #endif // CSTREAM_BUILD_TESTS
 
+		/**
+		* @brief Represents the structure of an authorization token.
+		*/
 		struct Authorization {
 			std::string code;
 			std::string refreshToken;
-			std::chrono::sys_seconds expires;
+			std::chrono::sys_seconds expires; // Time point indicating when the token will expire!
+
+			/**
+			* @brief Returns the request header for the authorization token.
+			* @return The request header.
+			*/
+			cpr::Header request_header() const { return cpr::Header{{"Authorization", "Bearer " + code}}; }
 		};
-		std::optional<Authorization> run_authorization_code_listening_server(std::string sessionState, std::optional<uint16_t> port = {}, bool verbose = true);
+		/**
+		* @brief Listens for the authorization code on a local server.
+		* @note This actually spins up a simple HTTP server on a background thread, this function is the part of this process most likely to need replacement!
+		* @param sessionState The session state.
+		* @param port The optional port for the local server (default = 3000).
+		* @param verbose Whether to print verbose messages (default = true).
+		* @return Nullopt if the process failed or an Authorization object containing the obtained code and refresh token.
+		*/
+		std::optional<Authorization> run_authorization_code_listening_server(std::string_view sessionState, std::optional<uint16_t> port = {}, bool verbose = true);
 
 #ifdef CSTREAM_BUILD_TESTS
 		TEST_CASE("run_authorization_code_listening_server (No Refresh Token)") {
@@ -125,11 +185,71 @@ namespace cstream {
 		}
 #endif // CSTREAM_BUILD_TESTS
 
+		/**
+		* @brief Requests an authorization token from the vstream OAuth token endpoint using an already received authorization code.
+		* @param clientID The OAuth client ID.
+		* @param clientSecret The OAuth client secret.
+		* @param info The authorization information.
+		* @param code The obtained authorization code.
+		* @return An optional Authorization object containing the access token and its details.
+		*/
 		std::optional<Authorization> request_authorization_token(std::string clientID, std::string clientSecret, AuthorizationInfo info, Authorization code);
+		/**
+		* @brief Requests an authorization token from the vstream OAuth token endpoint using authorization code.
+		* @note This version is for public clients which weren't assigned a client secret!
+		* @param clientID The OAuth client ID.
+		* @param info The authorization information.
+		* @param code The obtained authorization code.
+		* @return An optional Authorization object containing the access token and its details.
+		*/
 		std::optional<Authorization> request_authorization_token(std::string clientID, AuthorizationInfo info, Authorization code);
 
+		/**
+		* @brief Automates the entire OAuth authorization process by composing all of the other functions in this namespace.
+		* @param clientID The OAuth client ID.
+		* @param scopes The requested list of scopes.
+		* @param clientSecret The optional OAuth client secret.
+		* @param port The optional port for redirect URI (default = 3000).
+		* @param verbose Whether to print verbose messages (default = true).
+		* @return Nullopt if something went wrong, otherwise an Authorization object containing the access token and its details.
+		*/
 		std::optional<Authorization> automated_authorization(std::string clientID, std::vector<std::string> scopes, std::optional<std::string> clientSecret = {}, std::optional<uint16_t> port = {}, bool verbose = true);
+		/**
+		* @brief Automates the entire OAuth authorization process with scope flags.
+		* @param clientID The OAuth client ID.
+		* @param scopeFlags The scope flags (which are converted into a list of scopes behind the scenes).
+		* @param clientSecret The optional OAuth client secret.
+		* @param port The optional port for redirect URI (default = 3000).
+		* @param verbose Whether to print verbose messages (default = true).
+		* @return Nullopt if something went wrong, otherwise an Authorization object containing the access token and its details.
+		*/
 		std::optional<Authorization> automated_authorization(std::string clientID, int scopeFlags = Scope::Profile, std::optional<std::string> clientSecret = {}, std::optional<uint16_t> port = {}, bool verbose = true);
+		/**
+		* @brief Automates the entire OAuth authorization process by composing all of the other functions in this namespace.
+		* @param clientID The OAuth client ID.
+		* @param clientSecret The OAuth client secret.
+		* @note This version is more ergonomic for applications which have both and ID and a secret
+		* @param scopes The requested list of scopes.
+		* @param port The optional port for redirect URI (default = 3000).
+		* @param verbose Whether to print verbose messages (default = true).
+		* @return Nullopt if something went wrong, otherwise an Authorization object containing the access token and its details.
+		*/
+		inline std::optional<Authorization> automated_authorization(std::string clientID, std::string clientSecret, std::vector<std::string> scopes, std::optional<uint16_t> port = {}, bool verbose = true) {
+			return automated_authorization(clientID, scopes, clientSecret, port, verbose);
+		}
+		/**
+		* @brief Automates the entire OAuth authorization process with scope flags.
+		* @param clientID The OAuth client ID.
+		* @param clientSecret The OAuth client secret.
+		* @note This version is more ergonomic for applications which have both and ID and a secret
+		* @param scopeFlags The scope flags (which are converted into a list of scopes behind the scenes).
+		* @param port The optional port for redirect URI (default = 3000).
+		* @param verbose Whether to print verbose messages (default = true).
+		* @return Nullopt if something went wrong, otherwise an Authorization object containing the access token and its details.
+		*/
+		inline std::optional<Authorization> automated_authorization(std::string clientID, std::string clientSecret, int scopeFlags = Scope::Profile, std::optional<uint16_t> port = {}, bool verbose = true) {
+			return automated_authorization(clientID, scopeFlags, clientSecret, port, verbose);
+		}
 
 #ifdef CSTREAM_BUILD_TESTS
 		TEST_CASE("manual_automated_authorization" * doctest::skip()) {

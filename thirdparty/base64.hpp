@@ -27,7 +27,7 @@ const char base64_url_alphabet[] = {
 };
 
 template<typename T>
-std::string base64_encode(T in) {
+std::string base64_encode(const T& in) {
 	std::string out;
 	out.reserve(127);
 	int val = 0;
@@ -45,7 +45,8 @@ std::string base64_encode(T in) {
 	return out;
 }
 
-std::string base64_decode(std::string_view in) {
+template<typename Buffer>
+std::string base64_decode(const Buffer& in) {
 	std::string out;
 	out.reserve(127);
 	std::vector<int> T(256, -1);
