@@ -282,4 +282,59 @@ namespace cstream { inline namespace oauth2 {
 	std::optional<Authorization> automated_authorization(std::string clientID, int scopeFlags /*= Scope::Profile*/, std::optional<std::string> clientSecret /*= {}*/, std::optional<uint16_t> port /*= {}*/, bool verbose /*= true*/) {
 		return automated_authorization(clientID, scopes_to_strings(scopeFlags), clientSecret, port, verbose);
 	}
+
+
+
+	std::jthread Authorization::start_refresh_thread(std::string clientID, std::string clientSecret, std::chrono::milliseconds pollSleepTime /*= std::chrono::milliseconds(3000)*/) {
+		return std::jthread([=, this](std::stop_token t) {
+			while(!t.stop_requested()) {
+				if(std::chrono::system_clock::now() < expires - pollSleepTime) {
+					std::this_thread::sleep_for(pollSleepTime);
+					continue;
+				}
+
+				std::string auth = "Basic " + base64_encode(clientID + ":" + clientSecret);
+				auto r = cpr::Post(cpr::Url{"https://api.vstream.com/oidc/token"}, cpr::Header{{"Authorization", auth}}, cpr::Payload{
+					{"grant_type", "refresh_token"},
+					{"refresh_token", refreshToken},
+				});
+
+				if(r.status_code == 200) {
+					auto json = glz::read_json<TokenResponse>(r.text);
+					if(json) {
+						auto r = json.value();
+						expires = std::chrono::time_point_cast<std::chrono::seconds>(std::chrono::system_clock::now() + std::chrono::seconds(r.expires_in));
+						code = r.access_token;
+						refreshToken = r.refresh_token;
+					}
+				}
+			}
+		});
+	}
+	std::jthread Authorization::start_refresh_thread(std::string clientID, std::chrono::milliseconds pollSleepTime /*= std::chrono::milliseconds(3000)*/) {
+		return std::jthread([=, this](std::stop_token t) {
+			while(!t.stop_requested()) {
+				if(std::chrono::system_clock::now() < expires - pollSleepTime) {
+					std::this_thread::sleep_for(pollSleepTime);
+					continue;
+				}
+
+				auto r = cpr::Post(cpr::Url{"https://api.vstream.com/oidc/token"}, cpr::Payload{
+					{"grant_type", "refresh_token"},
+					{"refresh_token", refreshToken},
+					{"client_id", clientID},
+				});
+
+				if(r.status_code == 200) {
+					auto json = glz::read_json<TokenResponse>(r.text);
+					if(json) {
+						auto r = json.value();
+						expires = std::chrono::time_point_cast<std::chrono::seconds>(std::chrono::system_clock::now() + std::chrono::seconds(r.expires_in));
+						code = r.access_token;
+						refreshToken = r.refresh_token;
+					}
+				}
+			}
+		});
+	}
 }} // namespace cstream::oauth2

@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <random>
+#include <thread>
 
 #ifdef CSTREAM_BUILD_TESTS
 #include "doctest/doctest.h"
@@ -129,6 +130,9 @@ namespace cstream {
 			* @return The request header.
 			*/
 			cpr::Header request_header() const { return cpr::Header{{"Authorization", "Bearer " + code}}; }
+
+			std::jthread start_refresh_thread(std::string clientID, std::string clientSecret, std::chrono::milliseconds pollSleepTime = std::chrono::milliseconds(3000));
+			std::jthread start_refresh_thread(std::string clientID, std::chrono::milliseconds pollSleepTime = std::chrono::milliseconds(3000)); // TODO: can you even get a refresh token without a secret?
 		};
 		/**
 		* @brief Listens for the authorization code on a local server.
